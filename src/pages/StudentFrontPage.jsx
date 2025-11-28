@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import LayoutCard from "../components/LayoutCard";
 import logo from "../assets/logo.png";
@@ -8,19 +8,41 @@ export default function StudentFrontPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Haetaan kirjautunut käyttäjä state:sta
   const user = location.state?.user;
 
-  if (!user) {
-    // Jos käyttäjää ei ole, voidaan ohjata takaisin home-sivulle
-    navigate("/");
-    return null;
-  }
+  const [kurssitOppilaalle, setKurssitOppilaalle] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Kurssit käyttäjälle (mock-data voidaan vaihtaa myöhemmin API-kutsuun)
-  const kurssitOppilaalle = user.courses?.sort((a, b) =>
-    a.name.localeCompare(b.name)
-  ) || [];
+  useEffect(() => {
+    if (!user) {
+      navigate("/");
+      return;
+    }
+
+    const fetchCourses = async () => {
+      try {
+        const response = await fetch(`http://localhost:8080/api/students/${user.id}/courses`);
+        if (!response.ok) {
+          throw new Error("Kurssien haku epäonnistui");
+        }
+        const data = await response.json();
+        // Sortataan kurssit aakkosjärjestykseen
+        setKurssitOppilaalle(
+          data.sort((a, b) => a.courseName.localeCompare(b.courseName))
+        );
+      } catch (err) {
+        console.error(err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCourses();
+  }, [user, navigate]);
+
+  if (!user) return null;
 
   return (
     <div style={styles.app}>
@@ -45,49 +67,54 @@ export default function StudentFrontPage() {
           ← Takaisin
         </button>
 
-        {/* Kurssinavigointipalkki */}
-        <div style={styles.navBar}>
-          {kurssitOppilaalle.map((k) => (
-            <button key={k.id} style={styles.navButton}>
-              {k.name}
-            </button>
-          ))}
-        </div>
+        {loading && <p>Kurssit latautuvat...</p>}
+        {error && <p style={{ color: "red" }}>{error}</p>}
 
-        {/* Kurssit isona painikkeena */}
-        <div style={styles.itemContainer}>
-          {kurssitOppilaalle.map((k) => {
-            const edistyminen = k.tehtavatYhteensa
-              ? Math.floor((k.tehtavatValmiina / k.tehtavatYhteensa) * 100)
-              : 0;
+        {!loading && !error && (
+          <>
+            {/* Kurssinavigointipalkki */}
+            <div style={styles.navBar}>
+              {kurssitOppilaalle.map((k) => (
+                <button key={k.courseId} style={styles.navButton}>
+                  {k.courseName}
+                </button>
+              ))}
+            </div>
 
-            return (
-              <ds-card
-                key={k.id}
-                onClick={() => alert(`Siirryt suoritekortille: ${k.name}`)}
-                ds-heading={k.courseCode || ""}
-                ds-eyebrow={k.name}
-                ds-url="#"
-                ds-subtitle={`Edistyminen ${k.tehtavatValmiina || 0}/${
-                  k.tehtavatYhteensa || 0
-                }`}
-                ds-tag="Kurssi"
-                ds-horizontal="false"
-              >
-                <div slot="content">
-                  <div style={styles.progressBar}>
-                    <div
-                      style={{
-                        ...styles.progress,
-                        width: `${edistyminen}%`,
-                      }}
-                    ></div>
-                  </div>
-                </div>
-              </ds-card>
-            );
-          })}
-        </div>
+            {/* Kurssit isona painikkeena */}
+            <div style={styles.itemContainer}>
+              {kurssitOppilaalle.map((k) => {
+                const edistyminen = k.progressPercentage ?? 0;
+                const totalTasks = k.totalTasks ?? 0;
+                const completedTasks = k.completedTasks ?? 0;
+
+                return (
+                  <ds-card
+                    key={k.courseId}
+                    onClick={() => alert(`Siirryt suoritekortille: ${k.courseName}`)}
+                    ds-heading={String(k.courseCode || "")}
+                    ds-eyebrow={String(k.courseName)}
+                    ds-url="#"
+                    ds-subtitle={`Edistyminen ${completedTasks}/${totalTasks}`}
+                    ds-tag="Kurssi"
+                    ds-horizontal="false"
+                  >
+                    <div slot="content">
+                      <div style={styles.progressBar}>
+                        <div
+                          style={{
+                            ...styles.progress,
+                            width: `${edistyminen}%`,
+                          }}
+                        ></div>
+                      </div>
+                    </div>
+                  </ds-card>
+                );
+              })}
+            </div>
+          </>
+        )}
       </LayoutCard>
     </div>
   );

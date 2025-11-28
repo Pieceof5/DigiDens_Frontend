@@ -12,7 +12,6 @@ function HomePage() {
 
   const handleLogin = async () => {
     setError("");
-
     try {
       const response = await fetch("http://localhost:8080/api/login", {
         method: "POST",
@@ -47,10 +46,19 @@ function HomePage() {
       >
         <h1 style={styles.appName}>DigiDens</h1>
         <p style={styles.subtitle}>
-          Helsingin Yliopiston<br />Hammaslääketieteen oppimisympäristö
+          Helsingin Yliopiston
+          <br />
+          Hammaslääketieteen oppimisympäristö
         </p>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "15px", marginTop: "40px" }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "15px",
+            marginTop: "40px",
+          }}
+        >
           <input
             type="text"
             placeholder="Käyttäjänimi"
