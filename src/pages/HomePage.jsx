@@ -26,8 +26,9 @@ function HomePage() {
 
       const user = await response.json();
 
+      // 🔹 Navigoi oikeaan sivuun käyttäjän roolin mukaan
       if (user.role === "TEACHER") {
-        navigate("/teacherYears", { state: { user } });
+        navigate(`/teacherCourses/${user.id}`, { state: { user } }); // käytä user.id parametrina
       } else if (user.role === "STUDENT") {
         navigate("/studentCourses", { state: { user } });
       } else if (user.role === "ADMIN") {
@@ -51,14 +52,7 @@ function HomePage() {
           Hammaslääketieteen oppimisympäristö
         </p>
 
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "15px",
-            marginTop: "40px",
-          }}
-        >
+        <div style={{ display: "flex", flexDirection: "column", gap: "15px", marginTop: "40px" }}>
           <input
             type="text"
             placeholder="Käyttäjänimi"

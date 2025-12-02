@@ -228,6 +228,7 @@ export const studentFrontStyles = {
     backgroundColor: "#e0e0e0",
     borderRadius: "4px",
     marginTop: "8px",
+    marginBottom: "10px"
   },
   progress: { height: "8px", backgroundColor: "#005A94", borderRadius: "4px" },
   footerText: { fontSize: "16px", color: "#5C5C5C" },

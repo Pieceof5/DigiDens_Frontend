@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react"; 
 import { useNavigate, useLocation } from "react-router-dom";
 import LayoutCard from "../components/LayoutCard";
 import logo from "../assets/logo.png";
@@ -22,12 +22,14 @@ export default function StudentFrontPage() {
 
     const fetchCourses = async () => {
       try {
-        const response = await fetch(`http://localhost:8080/api/students/${user.id}/courses`);
+        const response = await fetch(
+          `http://localhost:8080/api/students/${user.id}/courses`
+        );
         if (!response.ok) {
           throw new Error("Kurssien haku epäonnistui");
         }
         const data = await response.json();
-        // Sortataan kurssit aakkosjärjestykseen
+
         setKurssitOppilaalle(
           data.sort((a, b) => a.courseName.localeCompare(b.courseName))
         );
@@ -72,41 +74,68 @@ export default function StudentFrontPage() {
 
         {!loading && !error && (
           <>
-            {/* Kurssinavigointipalkki */}
-            <div style={styles.navBar}>
-              {kurssitOppilaalle.map((k) => (
-                <button key={k.courseId} style={styles.navButton}>
-                  {k.courseName}
-                </button>
-              ))}
-            </div>
-
-            {/* Kurssit isona painikkeena */}
             <div style={styles.itemContainer}>
-              {kurssitOppilaalle.map((k) => {
-                const edistyminen = k.progressPercentage ?? 0;
-                const totalTasks = k.totalTasks ?? 0;
-                const completedTasks = k.completedTasks ?? 0;
+              {kurssitOppilaalle.map((instance) => {
+                const edistyminen = instance.progressPercentage ?? 0;
+                const totalTasks = instance.totalTasks ?? 0;
+                const completedTasks = instance.completedTasks ?? 0;
 
                 return (
                   <ds-card
-                    key={k.courseId}
-                    onClick={() => alert(`Siirryt suoritekortille: ${k.courseName}`)}
-                    ds-heading={String(k.courseCode || "")}
-                    ds-eyebrow={String(k.courseName)}
+                    key={instance.courseInstanceId}
+                    onClick={() =>
+                      navigate(`/studentCourse/${instance.courseInstanceId}`, {
+                        state: { course: instance },
+                      })
+                    }
+                    ds-heading={`${instance.courseName} ${instance.instanceCode}`}
+                    ds-eyebrow=""
                     ds-url="#"
-                    ds-subtitle={`Edistyminen ${completedTasks}/${totalTasks}`}
+                    ds-subtitle={
+                      instance.startDate && instance.endDate
+                        ? `${new Date(instance.startDate).toLocaleDateString(
+                            "fi-FI"
+                          )} - ${new Date(instance.endDate).toLocaleDateString(
+                            "fi-FI"
+                          )}`
+                        : "(Päivämäärä ei määritelty)"
+                    }
                     ds-tag="Kurssi"
                     ds-horizontal="false"
                   >
                     <div slot="content">
-                      <div style={styles.progressBar}>
-                        <div
-                          style={{
-                            ...styles.progress,
-                            width: `${edistyminen}%`,
-                          }}
-                        ></div>
+                      <div
+                        style={{
+                          marginLeft: "18px",
+                          fontSize: "1.05em",
+                          marginBottom: "8px",
+                          opacity: 0.8,
+                        }}
+                      >
+                        Edistyminen {/* Murtoluku 4/10 */} {completedTasks}/{totalTasks}
+                      </div>
+
+                      {/* Palkki + murtoluku vierekkäin  */}
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "12px",
+                          marginLeft: "18px",
+                        }}
+                      >
+                        {/* Palkki */}
+                        <div style={styles.progressBar}>
+                          <div
+                            style={{
+                              ...styles.progress,
+                              width: `${edistyminen}%`
+                            }}
+                          ></div>
+                        </div>
+
+                        {/* Murtoluku 4/10 */}
+                  
                       </div>
                     </div>
                   </ds-card>

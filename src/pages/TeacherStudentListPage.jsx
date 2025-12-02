@@ -32,7 +32,7 @@ export default function TeacherStudentListPage() {
         contentStyle={{ padding: "15px 30px" }}
         footer={<p style={styles.footerText}>@Helsingin Yliopisto</p>}
       >
-        {/* Takaisin-painike */}
+        //Takaisin-painike 
         <button style={styles.backButton} onClick={() => navigate(-1)}>
           ← Takaisin
         </button>
@@ -41,7 +41,7 @@ export default function TeacherStudentListPage() {
           {courseName}: Ryhmä {groupId} - Opiskelijat
         </h1>
 
-        {/* Opiskelijat listana */}
+        // Opiskelijat listana 
         <div style={styles.itemContainer}>
           {studentsInGroup.map((student) => {
             return (
