@@ -11,24 +11,15 @@ function TeacherAddCard({ courseName, courseInstanceId }) {
   const [newCardName, setNewCardName] = useState("");
   const [savedCards, setSavedCards] = useState([]);
 
-  // --------------------------------
-  // HAE TALLENNETUT KORTIT
-  // --------------------------------
-  const fetchSavedCards = async () => {
-    if (!courseInstanceId) return;
-
-    try {
-      const res = await axios.get(
-        `http://localhost:8080/api/taskCardTemplates/courseInstance/${courseInstanceId}`
-      );
-      if (res.data) setSavedCards(res.data);
-    } catch (err) {
-      console.error("Korttien haku epäonnistui:", err);
-    }
-  };
-
+  // Hae tallennetut kortit backendistä
   useEffect(() => {
-    fetchSavedCards();
+    if (!courseInstanceId) return;
+    axios
+      .get(`http://localhost:8080/api/taskCardTemplates/courseInstance/${courseInstanceId}`)
+      .then((res) => {
+        if (res.data && res.data.length > 0) setSavedCards(res.data);
+      })
+      .catch((err) => console.error("Korttien haku epäonnistui:", err));
   }, [courseInstanceId]);
 
   const addCard = () => {
@@ -71,7 +62,7 @@ function TeacherAddCard({ courseName, courseInstanceId }) {
 
     newCards[cardIndex].rows = newCards[cardIndex].rows.map((row) => ({
       ...row,
-      [colName]: "",
+      [colName]: newCol.type === "checkbox" ? false : "",
     }));
 
     newCards[cardIndex].newColumnName = "";
@@ -80,10 +71,10 @@ function TeacherAddCard({ courseName, courseInstanceId }) {
 
   const addRow = (cardIndex) => {
     const newCards = [...cards];
-    const row = { id: Date.now(), taskName: "", position: newCards[cardIndex].rows.length + 1 };
+    const row = { id: Date.now(), position: newCards[cardIndex].rows.length + 1, cells: {} };
 
     newCards[cardIndex].columns.forEach((col) => {
-      row[col.name] = col.type === "checkbox" ? false : "";
+      row.cells[col.name] = col.type === "checkbox" ? false : "";
     });
 
     newCards[cardIndex].rows.push(row);
@@ -94,13 +85,11 @@ function TeacherAddCard({ courseName, courseInstanceId }) {
     const newCards = [...cards];
     const colName = newCards[cardIndex].columns[colIndex].name;
     newCards[cardIndex].columns.splice(colIndex, 1);
-
     newCards[cardIndex].rows = newCards[cardIndex].rows.map((row) => {
-      const newRow = { ...row };
-      delete newRow[colName];
+      const newRow = { ...row, cells: { ...row.cells } };
+      delete newRow.cells[colName];
       return newRow;
     });
-
     setCards(newCards);
   };
 
@@ -113,44 +102,37 @@ function TeacherAddCard({ courseName, courseInstanceId }) {
   const handleColumnNameChange = (cardIndex, colIndex, value) => {
     const newCards = [...cards];
     const oldName = newCards[cardIndex].columns[colIndex].name;
-
     newCards[cardIndex].columns[colIndex].name = value;
-
     newCards[cardIndex].rows = newCards[cardIndex].rows.map((row) => {
-      const updated = { ...row };
-      updated[value] = updated[oldName];
-      delete updated[oldName];
-      return updated;
+      const newRow = { ...row, cells: { ...row.cells } };
+      newRow.cells[value] = newRow.cells[oldName];
+      delete newRow.cells[oldName];
+      return newRow;
     });
-
     setCards(newCards);
   };
 
   const handleColumnTypeChange = (cardIndex, colIndex, value) => {
     const newCards = [...cards];
-    const col = newCards[cardIndex].columns[colIndex];
-
-    col.type = value;
-
+    newCards[cardIndex].columns[colIndex].type = value;
     newCards[cardIndex].rows = newCards[cardIndex].rows.map((row) => {
-      row[col.name] = value === "checkbox" ? false : "";
+      const colName = newCards[cardIndex].columns[colIndex].name;
+      row.cells[colName] = value === "checkbox" ? false : "";
       return row;
     });
-
     setCards(newCards);
   };
 
   const handleColumnOptionsChange = (cardIndex, colIndex, value) => {
     const newCards = [...cards];
     newCards[cardIndex].columns[colIndex].optionsRaw = value;
-    newCards[cardIndex].columns[colIndex].options = value.split(",").map((s) => s.trim());
+    newCards[cardIndex].columns[colIndex].options = value.split(", ");
     setCards(newCards);
   };
 
   const handleResponderChange = (cardIndex, colIndex, value) => {
     const newCards = [...cards];
-    newCards[cardIndex].columns[colIndex].owner =
-      value === "teacher" ? "TEACHER" : "STUDENT";
+    newCards[cardIndex].columns[colIndex].owner = value === "teacher" ? "TEACHER" : "STUDENT";
     setCards(newCards);
   };
 
@@ -158,43 +140,40 @@ function TeacherAddCard({ courseName, courseInstanceId }) {
     const newCards = [...cards];
     const column = newCards[cardIndex].columns.find((c) => c.name === colName);
     if (column.owner === "STUDENT") return;
-    newCards[cardIndex].rows[rowIndex][colName] = value;
+    newCards[cardIndex].rows[rowIndex].cells[colName] = value;
     setCards(newCards);
   };
 
-  // --------------------------------
-  // TALLENNUS + LATAA KORTIT UUDELLEEN
-  // --------------------------------
   const saveCard = async (cardIndex) => {
     const card = cards[cardIndex];
 
+    // Korjattu DTO backendin mukaiseksi
     const dto = {
-      title: card.name,
+      name: card.name,
       columns: card.columns.map((col) => ({
-        label: col.name,
-        type: col.type.toUpperCase(),
-        role: col.owner.toUpperCase(),
+        name: col.name,
+        type: col.type,
+        role: col.owner,
         options: col.options || [],
       })),
-      rows: card.rows.map((row, idx) => ({
-        rowId: row.id || idx + 1,
-        cells: card.columns.reduce((acc, col) => {
-          acc[col.name] = row[col.name] !== undefined ? row[col.name] : null;
-          return acc;
-        }, {}),
+      rows: card.rows.map((row) => ({
+        name: row.name || `Row ${Date.now()}`,
+        cells: Object.entries(row.cells).map(([colName, value]) => ({
+          columnName: colName,
+          cell_value: value,
+          type: card.columns.find((c) => c.name === colName)?.type || "text",
+          role: card.columns.find((c) => c.name === colName)?.owner || "STUDENT",
+        })),
       })),
     };
 
     try {
-      await axios.post(
+      console.log("Lähetettävä DTO:", JSON.stringify(dto, null, 2));
+      const res = await axios.post(
         `http://localhost:8080/api/taskCardTemplates/createForCourseInstance/${courseInstanceId}`,
         dto
       );
-
-      // 🔥 hae päivitetyt kortit
-      await fetchSavedCards();
-
-      // poista local card
+      setSavedCards((prev) => [res.data, ...prev]);
       const newCards = [...cards];
       newCards.splice(cardIndex, 1);
       setCards(newCards);
@@ -212,7 +191,6 @@ function TeacherAddCard({ courseName, courseInstanceId }) {
         <button style={styles.backButton} onClick={() => navigate(-1)}>
           ← Takaisin
         </button>
-
         <h1 style={styles.appNameMini}>DigiDens</h1>
         <p style={styles.subtitle}>Tervetuloa opettajan suoritekorttinäkymään!</p>
 
@@ -220,7 +198,6 @@ function TeacherAddCard({ courseName, courseInstanceId }) {
         {courseName && <div style={styles.courseNameHeader}>{courseName}</div>}
         <p style={styles.subtitle2}>Luo ja hallinnoi tehtäväkortteja.</p>
 
-        {/* Uuden kortin luonti */}
         <div style={styles.taskContainer}>
           <input
             type="text"
@@ -262,11 +239,13 @@ function TeacherAddCard({ courseName, courseInstanceId }) {
                 <button style={styles.smallButton} onClick={() => addRow(ci)}>
                   Lisää rivi
                 </button>
+                <button style={styles.button} onClick={() => saveCard(ci)}>
+                  Tallenna suoritekortti
+                </button>
               </div>
 
-              {/* Taulukko - scrollattava */}
               {card.columns.length > 0 && (
-                <div style={{ overflowX: "auto", paddingBottom: "10px" }}>
+                <div style={{ overflowX: "auto" }}>
                   <table style={styles.table}>
                     <thead>
                       <tr>
@@ -284,9 +263,7 @@ function TeacherAddCard({ courseName, courseInstanceId }) {
                             <div>Kysymyksen tyyppi</div>
                             <select
                               value={col.type}
-                              onChange={(e) =>
-                                handleColumnTypeChange(ci, colIndex, e.target.value)
-                              }
+                              onChange={(e) => handleColumnTypeChange(ci, colIndex, e.target.value)}
                               style={styles.selectInput}
                             >
                               <option value="text">Teksti</option>
@@ -300,9 +277,7 @@ function TeacherAddCard({ courseName, courseInstanceId }) {
                                   type="text"
                                   placeholder="Pilkuilla erotettuna"
                                   value={col.optionsRaw ?? ""}
-                                  onChange={(e) =>
-                                    handleColumnOptionsChange(ci, colIndex, e.target.value)
-                                  }
+                                  onChange={(e) => handleColumnOptionsChange(ci, colIndex, e.target.value)}
                                   style={styles.columnInput}
                                 />
                               </>
@@ -310,9 +285,7 @@ function TeacherAddCard({ courseName, courseInstanceId }) {
                             <div>Vastaaja</div>
                             <select
                               value={col.owner === "TEACHER" ? "teacher" : "student"}
-                              onChange={(e) =>
-                                handleResponderChange(ci, colIndex, e.target.value)
-                              }
+                              onChange={(e) => handleResponderChange(ci, colIndex, e.target.value)}
                               style={styles.selectInput}
                             >
                               <option value="teacher">Opettaja</option>
@@ -323,7 +296,6 @@ function TeacherAddCard({ courseName, courseInstanceId }) {
                         <th></th>
                       </tr>
                     </thead>
-
                     <tbody>
                       {card.rows.map((row, ri) => (
                         <tr key={ri}>
@@ -332,7 +304,7 @@ function TeacherAddCard({ courseName, courseInstanceId }) {
                               {col.type === "checkbox" ? (
                                 <input
                                   type="checkbox"
-                                  checked={row[col.name]}
+                                  checked={row.cells[col.name]}
                                   onChange={(e) =>
                                     handleCellChange(ci, ri, col.name, e.target.checked)
                                   }
@@ -346,7 +318,7 @@ function TeacherAddCard({ courseName, courseInstanceId }) {
                                         type="radio"
                                         name={`${ci}-${ri}-${colIndex}`}
                                         value={opt}
-                                        checked={row[col.name] === opt}
+                                        checked={row.cells[col.name] === opt}
                                         onChange={(e) =>
                                           handleCellChange(ci, ri, col.name, e.target.value)
                                         }
@@ -358,7 +330,7 @@ function TeacherAddCard({ courseName, courseInstanceId }) {
                               ) : (
                                 <input
                                   type="text"
-                                  value={row[col.name]}
+                                  value={row.cells[col.name]}
                                   onChange={(e) =>
                                     handleCellChange(ci, ri, col.name, e.target.value)
                                   }
@@ -387,61 +359,6 @@ function TeacherAddCard({ courseName, courseInstanceId }) {
               </button>
             </div>
           ))}
-
-          {/* ------------------------ */}
-          {/* TALLENNETUT KORTIT */}
-          {/* ------------------------ */}
-          <h2 style={{ marginTop: "40px" }}>Tallennetut suoritekortit</h2>
-
-        {/* ------------------------ */}
-{/* TALLENNETUT KORTIT */}
-{/* ------------------------ */}
-<h2 style={{ marginTop: "40px" }}>Tallennetut suoritekortit</h2>
-
-{savedCards.map((card, ci) => (
-  <div key={ci} style={styles.cardItem}>
-    <h3>{card.title}</h3>
-
-    {card.columns.length > 0 && (
-      <div style={{ overflowX: "auto", paddingBottom: "10px" }}>
-        <table style={styles.table}>
-          <thead>
-            <tr>
-              {card.columns.map((col, colIndex) => (
-                <th key={colIndex} style={{ ...styles.tableHeader, width: "200px" }}>
-                  {col.label} ({col.type})
-                </th>
-              ))}
-            </tr>
-          </thead>
-
-          <tbody>
-            {card.rows.map((row, ri) => (
-              <tr key={ri}>
-                {card.columns.map((col, colIndex) => (
-                  <td key={colIndex} style={{ ...styles.cellTd, width: "200px" }}>
-                    {/* Näytä soluarvo */}
-                    {row.cells[col.label]}
-                    
-                    {/* Jos radio/monivalinta, näytä vaihtoehdot listana */}
-                    {(col.type === "RADIO" || col.type === "MULTIPLE_CHOICE") && col.options?.length > 0 && (
-                      <ul style={{ paddingLeft: "20px", marginTop: "5px" }}>
-                        {col.options.map((opt, idx) => (
-                          <li key={idx}>{opt}</li>
-                        ))}
-                      </ul>
-                    )}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    )}
-  </div>
-))}
-
         </div>
       </LayoutCard>
     </div>

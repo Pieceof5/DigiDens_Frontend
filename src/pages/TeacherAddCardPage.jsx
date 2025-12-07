@@ -1,15 +1,18 @@
 import React from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useLocation } from "react-router-dom";
 import TeacherAddCard from "../components/TeacherAddCard";
 
-function TeacherAddCardPage() {
-  const { courseName } = useParams();
+export default function TeacherAddCardPage() {
+  const { teacherId, courseInstanceId } = useParams();
+  const location = useLocation();
+  const instance = location.state?.instance || null;
+
+  if (!courseInstanceId) return <p>Kurssitoteutus ei ole määritelty.</p>;
 
   return (
     <TeacherAddCard
-      courseName={courseName}
+      courseName={instance?.courseName}
+      courseInstanceId={courseInstanceId}
     />
   );
 }
-
-export default TeacherAddCardPage;

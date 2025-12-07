@@ -6,7 +6,7 @@ import { studentFrontStyles as styles } from "../styles/commonStyles";
 
 export default function TeacherCourseInstancePage() {
   const navigate = useNavigate();
-  const { teacherId, instanceId } = useParams();
+  const { teacherId, courseInstanceId } = useParams(); // Korjattu nimi
   const location = useLocation();
 
   const [teacher, setTeacher] = useState(location.state?.teacher || null);
@@ -14,12 +14,13 @@ export default function TeacherCourseInstancePage() {
   const [loading, setLoading] = useState(!instance);
   const [error, setError] = useState(null);
 
+
   useEffect(() => {
     if (!instance) {
       const fetchInstance = async () => {
         try {
           const res = await fetch(
-            `http://localhost:8080/api/teachers/${teacherId}/course-instances/${instanceId}`
+            `http://localhost:8080/api/teachers/${teacherId}/course-instances/${courseInstanceId}`
           );
           if (!res.ok) throw new Error("Toteutuksen haku epäonnistui");
 
@@ -37,7 +38,7 @@ export default function TeacherCourseInstancePage() {
 
       fetchInstance();
     }
-  }, [teacherId, instanceId, instance, teacher]);
+  }, [teacherId, courseInstanceId, instance, teacher]);
 
   if (loading) return <p>Dataa haetaan...</p>;
   if (error) return <p style={{ color: "red" }}>{error}</p>;
@@ -97,7 +98,7 @@ export default function TeacherCourseInstancePage() {
               fontSize: "16px",
             }}
             onClick={() =>
-              navigate(`/teacherCourses/${teacherId}/${instanceId}/teacherCards`, {
+              navigate(`/teacherCourses/${teacherId}/${courseInstanceId}/teacherCards`, {
                 state: { teacher, instance },
               })
             }
