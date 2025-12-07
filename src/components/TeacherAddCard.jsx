@@ -388,10 +388,7 @@ function TeacherAddCard({ courseName, courseInstanceId }) {
             </div>
           ))}
 
-          {/* ------------------------ */}
-          {/* TALLENNETUT KORTIT */}
-          {/* ------------------------ */}
-          <h2 style={{ marginTop: "40px" }}>Tallennetut suoritekortit</h2>
+
 
         {/* ------------------------ */}
 {/* TALLENNETUT KORTIT */}
